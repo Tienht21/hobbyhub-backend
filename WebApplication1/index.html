@@ -1,0 +1,884 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HobbyHub - Quản lý Sở thích Cá nhân</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Thư viện tạo tour hướng dẫn Driver.js -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/driver.js@1.3.1/dist/driver.css"/>
+    <script src="https://cdn.jsdelivr.net/npm/driver.js@1.3.1/dist/driver.js.iife.js"></script>
+    <!-- Google Identity Services SDK -->
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #f8fafc; color: #1e293b; }
+        .navbar-brand { font-weight: 700; color: #6366f1 !important; }
+        .btn-indigo { background-color: #6366f1; color: #ffffff; border: none; font-weight: 500; }
+        .btn-indigo:hover { background-color: #4f46e5; color: #ffffff; }
+        .hobby-card { border: none; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); transition: transform 0.2s ease; }
+        .hobby-card:hover { transform: translateY(-4px); }
+        .badge-READING { background-color: #10b981; color: white; }
+        .badge-GAMING { background-color: #8b5cf6; color: white; }
+        .badge-MOVIES_SHOWS { background-color: #f59e0b; color: white; }
+        .badge-COLLECTIBLES { background-color: #f43f5e; color: white; }
+        .badge-SPORTS_FITNESS { background-color: #0284c7; color: white; }
+        .badge-TRAVEL { background-color: #06b6d4; color: white; }
+        .badge-VEHICLES { background-color: #64748b; color: white; }
+        .tag-pill { background-color: #f1f5f9; color: #475569; font-size: 0.75rem; border-radius: 20px; padding: 4px 10px; margin-right: 4px; display: inline-block; }
+        .rating-stars { color: #fbbf24; }
+        .nav-pills .nav-link.active { background-color: #6366f1; }
+        .nav-pills .nav-link { color: #64748b; font-weight: 500; border-radius: 20px; padding: 6px 16px; }
+    </style>
+</head>
+<body>
+
+    <!-- Header / Navbar -->
+    <nav class="navbar navbar-expand-lg navbar-light bg-white border-bottom sticky-top py-3">
+        <div class="container">
+            <a class="navbar-brand d-flex align-items-center gap-2" href="#">
+                <i class="fa-solid fa-shapes fa-lg"></i>
+                <span>HobbyHub</span>
+            </a>
+
+            <!-- Trạng thái Đăng nhập / User Profile -->
+            <div class="d-flex align-items-center gap-2" id="authNavContainer">
+                <!-- Sẽ render tự động bằng JS -->
+            </div>
+        </div>
+    </nav>
+
+    <div class="container my-4">
+        <div class="row mb-4 align-items-center">
+            <div class="col-12">
+                <h3 class="fw-bold mb-1" id="pageTitle">Sở thích cá nhân</h3>
+                <p class="text-muted mb-0" id="pageSubtitle">Vui lòng đăng nhập để xem và quản lý danh sách sở thích</p>
+            </div>
+        </div>
+
+        <!-- Filter Tabs đầy đủ 7 loại sở thích -->
+        <ul class="nav nav-pills mb-4 gap-2 flex-wrap" id="categoryFilterTabs">
+            <li class="nav-item"><button class="nav-link active" onclick="filterCategory('')">Tất cả</button></li>
+            <li class="nav-item"><button class="nav-link" onclick="filterCategory('READING')">📚 Sách</button></li>
+            <li class="nav-item"><button class="nav-link" onclick="filterCategory('GAMING')">🎮 Game</button></li>
+            <li class="nav-item"><button class="nav-link" onclick="filterCategory('MOVIES_SHOWS')">🎬 Phim ảnh</button></li>
+            <li class="nav-item"><button class="nav-link" onclick="filterCategory('COLLECTIBLES')">🧸 Đồ sưu tầm</button></li>
+            <li class="nav-item"><button class="nav-link" onclick="filterCategory('SPORTS_FITNESS')">🏃 Thể thao</button></li>
+            <li class="nav-item"><button class="nav-link" onclick="filterCategory('TRAVEL')">✈️ Du lịch</button></li>
+            <li class="nav-item"><button class="nav-link" onclick="filterCategory('VEHICLES')">🚗 Xe cộ</button></li>
+        </ul>
+
+        <div class="row g-4" id="hobbyGrid"></div>
+    </div>
+
+    <!-- MODAL AUTHENTICATION (Đăng nhập / Đăng ký / Quên mật khẩu) -->
+    <div class="modal fade" id="authModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow-lg rounded-4 p-3">
+                
+                <!-- TAB ĐĂNG NHẬP -->
+                <div id="loginView">
+                    <div class="text-center mb-4">
+                        <h4 class="fw-bold text-primary">Đăng nhập HobbyHub</h4>
+                        <p class="text-muted small">Nhập tài khoản để tiếp tục</p>
+                    </div>
+                    <form id="loginForm">
+                        <div class="mb-3">
+                            <label class="form-label small fw-semibold">Tên đăng nhập / Email</label>
+                            <input type="text" class="form-control" id="loginUser" required placeholder="usr_101 hoặc email@domain.com">
+                        </div>
+                        <div class="mb-3">
+                            <div class="d-flex justify-content-between">
+                                <label class="form-label small fw-semibold">Mật khẩu</label>
+                                <a href="#" class="small text-decoration-none" onclick="switchAuthView('forgot')">Quên mật khẩu?</a>
+                            </div>
+                            <input type="password" class="form-control" id="loginPass" required placeholder="••••••••">
+                        </div>
+                        <button type="submit" class="btn btn-indigo w-100 py-2 rounded-3 mb-3">Đăng nhập</button>
+                    </form>
+
+                    <!-- Phân cách đường kẻ -->
+                    <div class="text-center my-3 position-relative">
+                        <hr>
+                        <span class="position-absolute top-50 start-50 translate-middle bg-white px-2 text-muted small">hoặc</span>
+                    </div>
+
+                    <!-- Nút Đăng nhập bằng Google -->
+                    <div id="g_id_onload"
+                         data-client_id="214188369538-rhe7bfd1o5hp8dd96njnd4eo2ceb9qp3.apps.googleusercontent.com"
+                         data-callback="handleGoogleCredentialResponse">
+                    </div>
+                    <div class="g_id_signin w-100 d-flex justify-content-center mb-3" 
+                         data-type="standard" 
+                         data-shape="rectangular" 
+                         data-theme="outline" 
+                         data-text="signin_with" 
+                         data-size="large" 
+                         data-logo_alignment="left">
+                    </div>
+
+                    <div class="text-center small">
+                        Chưa có tài khoản? <a href="#" class="fw-semibold text-primary text-decoration-none" onclick="switchAuthView('register')">Đăng ký ngay</a>
+                    </div>
+                </div>
+
+                <!-- TAB ĐĂNG KÝ -->
+                <div id="registerView" style="display: none;">
+                    <div class="text-center mb-4">
+                        <h4 class="fw-bold text-primary">Tạo tài khoản mới</h4>
+                        <p class="text-muted small">Trải nghiệm lưu trữ sở thích linh hoạt với MongoDB</p>
+                    </div>
+                    <form id="registerForm">
+                        <div class="mb-3">
+                            <label class="form-label small fw-semibold">Tên đăng nhập (Username)</label>
+                            <input type="text" class="form-control" id="regUser" required placeholder="usr_102">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label small fw-semibold">Địa chỉ Email</label>
+                            <input type="email" class="form-control" id="regEmail" required placeholder="user@gmail.com">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label small fw-semibold">Mật khẩu</label>
+                            <input type="password" class="form-control" id="regPass" required placeholder="••••••••">
+                        </div>
+                        <button type="submit" class="btn btn-indigo w-100 py-2 rounded-3 mb-3">Đăng ký tài khoản</button>
+                    </form>
+                    <div class="text-center small">
+                        Đã có tài khoản? <a href="#" class="fw-semibold text-primary text-decoration-none" onclick="switchAuthView('login')">Đăng nhập</a>
+                    </div>
+                </div>
+
+                <!-- TAB QUÊN MẬT KHẨU -->
+                <div id="forgotView" style="display: none;">
+                    <div class="text-center mb-4">
+                        <h4 class="fw-bold text-primary">Khôi phục mật khẩu</h4>
+                        <p class="text-muted small">Nhập Email để nhận mã xác nhận OTP</p>
+                    </div>
+                    <form id="forgotForm">
+                        <div class="mb-3">
+                            <label class="form-label small fw-semibold">Email đã đăng ký</label>
+                            <input type="email" class="form-control" id="forgotEmail" required placeholder="user@gmail.com">
+                        </div>
+                        <button type="submit" class="btn btn-indigo w-100 py-2 rounded-3 mb-3">Gửi mã OTP</button>
+                    </form>
+
+                    <!-- Form Đặt lại Mật khẩu -->
+                    <form id="resetForm" style="display: none;" class="border-top pt-3 mt-3">
+                        <div class="alert alert-info small mb-3" id="otpDemoAlert"></div>
+                        <div class="mb-2">
+                            <label class="form-label small fw-semibold">Mã OTP (6 chữ số)</label>
+                            <input type="text" class="form-control" id="resetOtp" required placeholder="123456">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label small fw-semibold">Mật khẩu mới</label>
+                            <input type="password" class="form-control" id="resetNewPass" required placeholder="••••••••">
+                        </div>
+                        <button type="submit" class="btn btn-success w-100 py-2 rounded-3 mb-3">Xác nhận đổi mật khẩu</button>
+                    </form>
+
+                    <div class="text-center small">
+                        <a href="#" class="text-muted text-decoration-none" onclick="switchAuthView('login')">← Quay lại Đăng nhập</a>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Thêm / Sửa Sở thích -->
+    <div class="modal fade" id="addHobbyModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-content border-0 shadow-lg rounded-4">
+                <div class="modal-header border-0 pb-0">
+                    <h5 class="modal-title fw-bold" id="modalTitle">Thêm mới sở thích</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <form id="addHobbyForm">
+                        <input type="hidden" id="editingId" value="">
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label fw-medium">Mã người dùng sở hữu</label>
+                                <input type="text" class="form-control" id="formUserId" readonly>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-medium">Loại sở thích</label>
+                                <select class="form-select" id="formHobbyType" onchange="renderDynamicFields()" required>
+                                    <option value="READING">📚 Sách & Truyện</option>
+                                    <option value="GAMING" selected>🎮 Video Game</option>
+                                    <option value="MOVIES_SHOWS">🎬 Phim & TV Series</option>
+                                    <option value="COLLECTIBLES">🧸 Đồ Sưu Tầm</option>
+                                    <option value="SPORTS_FITNESS">🏃 Thể Thao & Rèn Luyện</option>
+                                    <option value="TRAVEL">✈️ Du Lịch & Dã Ngoại</option>
+                                    <option value="VEHICLES">🚗 Xe Cộ & Xe Yêu Thích</option>
+                                </select>
+                            </div>
+
+                            <div class="col-md-8">
+                                <label class="form-label fw-medium">Tên / Tiêu đề</label>
+                                <input type="text" class="form-control" id="formTitle" required>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label fw-medium">Trạng thái</label>
+                                <select class="form-select" id="formStatus">
+                                    <option value="IN_PROGRESS">Đang thực hiện</option>
+                                    <option value="COMPLETED" selected>Đã hoàn thành</option>
+                                    <option value="OWNED">Đã sở hữu</option>
+                                    <option value="PLAN_TO_START">Dự định làm</option>
+                                </select>
+                            </div>
+
+                            <div class="col-md-4">
+                                <label class="form-label fw-medium">Đánh giá (1-5 Sao)</label>
+                                <select class="form-select" id="formRating">
+                                    <option value="5">⭐⭐⭐⭐⭐ (5/5)</option>
+                                    <option value="4">⭐⭐⭐⭐ (4/5)</option>
+                                    <option value="3">⭐⭐⭐ (3/5)</option>
+                                    <option value="2">⭐⭐ (2/5)</option>
+                                    <option value="1">⭐ (1/5)</option>
+                                </select>
+                            </div>
+                            <div class="col-md-8">
+                                <label class="form-label fw-medium">Thẻ Tags (phân cách bằng dấu phẩy)</label>
+                                <input type="text" class="form-control" id="formTags" placeholder="rpg, open-world">
+                            </div>
+
+                            <div class="col-12 mt-4">
+                                <div class="p-3 bg-light rounded-3 border">
+                                    <h6 class="fw-bold text-primary mb-3" id="dynamicFieldsTitle">Chi tiết động</h6>
+                                    <div class="row g-3" id="dynamicFieldsContainer"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mt-4 text-end">
+                            <button type="button" class="btn btn-light me-2" data-bs-dismiss="modal">Hủy</button>
+                            <button type="submit" class="btn btn-indigo px-4" id="btnSubmit">Lưu vào MongoDB</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+    <script>
+        // Cố định tự động kết nối Port 7127
+        const API_PORT = "7127";
+        const API_BASE_URL = `https://localhost:${API_PORT}/api/Hobby`;
+        const AUTH_API_URL = `https://localhost:${API_PORT}/api/Auth`;
+
+        let currentCategory = "";
+        let currentLoadedItems = [];
+
+        // Từ điển dịch thuộc tính
+        const FIELD_LABELS_VI = {
+            platform: "Nền tảng", genre: "Thể loại", playtime_hours: "Số giờ chơi", completion_rate: "Tỷ lệ hoàn thành (%)", achievements: "Thành tựu", achievements_unlocked: "Thành tựu",
+            author: "Tác giả", publisher: "Nhà xuất bản", total_pages: "Tổng số trang", current_page: "Trang hiện tại", favorite_quotes: "Trích dẫn hay",
+            media_type: "Loại phim", director: "Đạo diễn", release_year: "Năm phát hành", duration_minutes: "Thời lượng (phút)", streaming_platform: "Nền tảng chiếu",
+            brand: "Thương hiệu", condition: "Tình trạng", purchase_price: "Giá mua", storage_location: "Vị trí cất giữ", maintenance_notes: "Ghi chú bảo quản",
+            activity_type: "Loại hoạt động", distance_km: "Quãng đường (km)", calories_burned: "Calo tiêu thụ",
+            destination: "Điểm đến", transport_method: "Phương tiện", duration_days: "Số ngày đi", trip_cost: "Chi phí chuyến đi",
+            vehicle_model: "Mẫu xe / Tên xe", engine_type: "Động cơ / Phân khối", top_speed: "Tốc độ tối đa", vehicle_price: "Giá trị xe",
+            review: "Đánh giá cá nhân"
+        };
+
+        const TYPE_LABELS_VI = { 
+            READING: "Sách", GAMING: "Game", MOVIES_SHOWS: "Phim ảnh", 
+            COLLECTIBLES: "Đồ sưu tầm", SPORTS_FITNESS: "Thể thao",
+            TRAVEL: "Du lịch", VEHICLES: "Xe cộ"
+        };
+        const STATUS_LABELS_VI = { IN_PROGRESS: "Đang thực hiện", COMPLETED: "Đã hoàn thành", OWNED: "Đã sở hữu", WATCHED: "Đã xem", PLAN_TO_START: "Dự định" };
+
+        function getLoggedInUser() {
+            const session = localStorage.getItem('hobbyhub_user');
+            return session ? JSON.parse(session) : null;
+        }
+
+        function renderAuthNavbar() {
+            const user = getLoggedInUser();
+            const container = document.getElementById('authNavContainer');
+
+            if (user) {
+                container.innerHTML = `
+                    <div class="d-flex align-items-center gap-2 me-2">
+                        <span class="badge ${user.role === 'Admin' ? 'bg-danger' : 'bg-primary'} px-2 py-1">${user.role}</span>
+                        <span class="fw-bold text-dark"><i class="fa-regular fa-user me-1"></i>${user.userId}</span>
+                    </div>
+                    <button class="btn btn-indigo px-3 py-2 rounded-3 me-2" id="btnAddHobbyNav" onclick="openAddModal()">
+                        <i class="fa-solid fa-plus me-1"></i> Thêm sở thích
+                    </button>
+                    <button class="btn btn-outline-secondary px-3 py-2 rounded-3 me-2" onclick="startTour()">
+                        <i class="fa-solid fa-circle-question me-1"></i> Hướng dẫn
+                    </button>
+                    <button class="btn btn-outline-danger btn-sm rounded-3" onclick="logout()">
+                        <i class="fa-solid fa-right-from-bracket me-1"></i> Đăng xuất
+                    </button>`;
+                
+                document.getElementById('pageTitle').innerText = user.role === 'Admin' ? 'Quản trị Sở thích (Chế độ Admin)' : 'Sở thích của tôi';
+                document.getElementById('pageSubtitle').innerText = user.role === 'Admin' 
+                    ? 'Đang xem toàn bộ dữ liệu của tất cả người dùng trong MongoDB' 
+                    : `Đang đăng nhập dưới tài khoản: ${user.userId}`;
+            } else {
+                container.innerHTML = `
+                    <button class="btn btn-outline-secondary px-3 py-2 rounded-3 me-2" onclick="startTour()">
+                        <i class="fa-solid fa-circle-question me-1"></i> Hướng dẫn
+                    </button>
+                    <button class="btn btn-indigo px-3 py-2 rounded-3" onclick="openAuthModal('login')">
+                        <i class="fa-solid fa-right-to-bracket me-1"></i> Đăng nhập / Đăng ký
+                    </button>`;
+                
+                document.getElementById('pageTitle').innerText = 'Sở thích cá nhân';
+                document.getElementById('pageSubtitle').innerText = 'Vui lòng đăng nhập để xem và quản lý danh sách sở thích';
+            }
+        }
+
+        function switchAuthView(viewName) {
+            document.getElementById('loginView').style.display = viewName === 'login' ? 'block' : 'none';
+            document.getElementById('registerView').style.display = viewName === 'register' ? 'block' : 'none';
+            document.getElementById('forgotView').style.display = viewName === 'forgot' ? 'block' : 'none';
+        }
+
+        function openAuthModal(viewName = 'login') {
+            switchAuthView(viewName);
+            new bootstrap.Modal(document.getElementById('authModal')).show();
+        }
+
+        function logout() {
+            localStorage.removeItem('hobbyhub_user');
+            renderAuthNavbar();
+            loadHobbies();
+        }
+
+        // Xử lý Form Đăng nhập thường
+        document.getElementById('loginForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const dto = {
+                usernameOrEmail: document.getElementById('loginUser').value.trim(),
+                password: document.getElementById('loginPass').value.trim()
+            };
+
+            try {
+                const res = await fetch(`${AUTH_API_URL}/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(dto)
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    localStorage.setItem('hobbyhub_user', JSON.stringify(data));
+                    bootstrap.Modal.getInstance(document.getElementById('authModal')).hide();
+                    renderAuthNavbar();
+                    loadHobbies();
+                    checkAndRunTour();
+                } else {
+                    alert(data.message || 'Đăng nhập thất bại!');
+                }
+            } catch (err) { alert('Không kết nối được API!'); }
+        });
+
+        // Xử lý Đăng nhập Google Token Callback
+        async function handleGoogleCredentialResponse(response) {
+            try {
+                const res = await fetch(`${AUTH_API_URL}/google-login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ idToken: response.credential })
+                });
+
+                const data = await res.json();
+                if (res.ok) {
+                    localStorage.setItem('hobbyhub_user', JSON.stringify(data));
+                    const authModalEl = document.getElementById('authModal');
+                    const modalInstance = bootstrap.Modal.getInstance(authModalEl);
+                    if (modalInstance) modalInstance.hide();
+                    
+                    renderAuthNavbar();
+                    loadHobbies();
+                    checkAndRunTour();
+                } else {
+                    alert(data.message || 'Đăng nhập Google thất bại!');
+                }
+            } catch (err) {
+                alert('Lỗi kết nối API Google Login!');
+            }
+        }
+
+        // Xử lý Form Đăng ký
+        document.getElementById('registerForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const dto = {
+                username: document.getElementById('regUser').value.trim(),
+                email: document.getElementById('regEmail').value.trim(),
+                password: document.getElementById('regPass').value.trim(),
+                role: "User"
+            };
+
+            try {
+                const res = await fetch(`${AUTH_API_URL}/register`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(dto)
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    alert('Đăng ký tài khoản User thành công! Hãy đăng nhập ngay.');
+                    switchAuthView('login');
+                } else {
+                    alert(data.message || 'Lỗi đăng ký!');
+                }
+            } catch (err) { alert('Không kết nối được API!'); }
+        });
+
+        // Xử lý Form Quên mật khẩu
+        document.getElementById('forgotForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const dto = { email: document.getElementById('forgotEmail').value.trim() };
+
+            try {
+                const res = await fetch(`${AUTH_API_URL}/forgot-password`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(dto)
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    document.getElementById('otpDemoAlert').innerText = `Mã OTP demo của bạn là: ${data.otpCodeDemo}`;
+                    document.getElementById('resetForm').style.display = 'block';
+                } else {
+                    alert(data.message || 'Lỗi gửi yêu cầu!');
+                }
+            } catch (err) { alert('Lỗi kết nối!'); }
+        });
+
+        // Xử lý Form Đặt lại mật khẩu
+        document.getElementById('resetForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const dto = {
+                email: document.getElementById('forgotEmail').value.trim(),
+                otpCode: document.getElementById('resetOtp').value.trim(),
+                newPassword: document.getElementById('resetNewPass').value.trim()
+            };
+
+            try {
+                const res = await fetch(`${AUTH_API_URL}/reset-password`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(dto)
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    alert(data.message);
+                    switchAuthView('login');
+                } else {
+                    alert(data.message || 'Đổi mật khẩu thất bại!');
+                }
+            } catch (err) { alert('Lỗi kết nối!'); }
+        });
+
+        async function loadHobbies() {
+            const grid = document.getElementById('hobbyGrid');
+            const user = getLoggedInUser();
+
+            if (!user) {
+                grid.innerHTML = `
+                    <div class="col-12 text-center py-5">
+                        <i class="fa-solid fa-lock text-muted fa-3x mb-3"></i>
+                        <h5>Chưa đăng nhập!</h5>
+                        <p class="text-muted">Bạn cần đăng nhập để xem danh sách sở thích từ MongoDB.</p>
+                        <button class="btn btn-indigo" onclick="openAuthModal('login')">Đăng nhập ngay</button>
+                    </div>`;
+                return;
+            }
+
+            grid.innerHTML = `<div class="text-center py-5"><div class="spinner-border text-primary"></div><p class="mt-2 text-muted">Đang kết nối MongoDB...</p></div>`;
+
+            try {
+                let url = `${API_BASE_URL}?userId=${user.userId}&role=${user.role}`;
+                if (currentCategory) url += `&type=${currentCategory}`;
+
+                const response = await fetch(url);
+                if (!response.ok) throw new Error("Lỗi tải API");
+
+                currentLoadedItems = await response.json();
+                renderCards(currentLoadedItems);
+            } catch (error) {
+                grid.innerHTML = `<div class="col-12 text-center py-5 text-danger"><i class="fa-solid fa-triangle-exclamation fa-3x mb-3"></i><h5>Lỗi kết nối API! Vui lòng kiểm tra lại Backend.</h5></div>`;
+            }
+        }
+
+        function renderCards(items) {
+            const grid = document.getElementById('hobbyGrid');
+            const user = getLoggedInUser();
+
+            if (!items || items.length === 0) {
+                grid.innerHTML = `<div class="col-12 text-center py-5 text-muted">Chưa có dữ liệu nào.</div>`;
+                return;
+            }
+
+            grid.innerHTML = items.map(item => {
+                const tagsHtml = (item.tags || []).map(t => `<span class="tag-pill">#${t}</span>`).join('');
+                const starsHtml = '★'.repeat(item.rating || 0) + '☆'.repeat(5 - (item.rating || 0));
+                const categoryVi = TYPE_LABELS_VI[item.hobbyType] || item.hobbyType;
+                const statusVi = STATUS_LABELS_VI[item.status] || item.status;
+                
+                let detailsSummaryHtml = '';
+                if (item.details) {
+                    detailsSummaryHtml = Object.entries(item.details)
+                        .map(([key, val]) => {
+                            const labelVi = FIELD_LABELS_VI[key] || key;
+                            let formattedVal = val;
+                            
+                            if (Array.isArray(val)) {
+                                formattedVal = val.map(v => (typeof v === 'object' && v !== null ? (v.title || v.name || JSON.stringify(v)) : v)).join(', ');
+                            } else if (typeof val === 'object' && val !== null) {
+                                formattedVal = JSON.stringify(val);
+                            }
+
+                            if ((key === 'purchase_price' || key === 'trip_cost' || key === 'vehicle_price') && typeof val === 'number') {
+                                formattedVal = val.toLocaleString('vi-VN') + ' VNĐ';
+                            }
+                            if (key === 'playtime_hours' && typeof val === 'number') formattedVal = val + ' giờ';
+                            if (key === 'duration_days' && typeof val === 'number') formattedVal = val + ' ngày';
+                            if (key === 'completion_rate' && typeof val === 'number') formattedVal = val + '%';
+
+                            return `<div class="small text-muted"><strong>${labelVi}:</strong> ${formattedVal}</div>`;
+                        })
+                        .join('');
+                }
+
+                const ownerBadgeHtml = (user && user.role === 'Admin') 
+                    ? `<span class="badge bg-secondary ms-1"><i class="fa-regular fa-user me-1"></i>Chủ sở hữu: ${item.userId}</span>`
+                    : '';
+
+                return `
+                <div class="col-md-6 col-lg-4">
+                    <div class="card hobby-card h-100 p-3">
+                        <div class="d-flex justify-content-between align-items-start mb-2">
+                            <div>
+                                <span class="badge badge-${item.hobbyType} px-2 py-1 rounded-2 text-uppercase" style="font-size: 0.75rem;">${categoryVi}</span>
+                                ${ownerBadgeHtml}
+                            </div>
+                            <div>
+                                <button class="btn btn-link text-primary p-0 me-2" onclick="editHobby('${item.id}')" title="Sửa"><i class="fa-regular fa-pen-to-square"></i></button>
+                                <button class="btn btn-link text-danger p-0" onclick="deleteHobby('${item.id}')" title="Xóa"><i class="fa-regular fa-trash-can"></i></button>
+                            </div>
+                        </div>
+                        <h5 class="fw-bold text-dark mb-1">${item.title}</h5>
+                        <div class="rating-stars small mb-2">${starsHtml}</div>
+                        
+                        <div class="bg-light p-2 rounded-3 mb-3 border-start border-3 border-indigo">
+                            ${detailsSummaryHtml || '<span class="text-muted small">Chưa có chi tiết</span>'}
+                        </div>
+
+                        <div class="mt-auto">
+                            <div class="mb-2">${tagsHtml}</div>
+                            <div class="d-flex justify-content-between align-items-center text-muted border-top pt-2" style="font-size: 0.8rem;">
+                                <span><i class="fa-regular fa-bookmark me-1"></i>${statusVi}</span>
+                                <span>${item.userId}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>`;
+            }).join('');
+        }
+
+        function filterCategory(category) {
+            currentCategory = category;
+            document.querySelectorAll('#categoryFilterTabs .nav-link').forEach(t => t.classList.remove('active'));
+            event.target.classList.add('active');
+            loadHobbies();
+        }
+
+        // Render Form Chi tiết động cho 7 loại sở thích
+        function renderDynamicFields(detailsObj = {}) {
+            const type = document.getElementById('formHobbyType').value;
+            const container = document.getElementById('dynamicFieldsContainer');
+            const title = document.getElementById('dynamicFieldsTitle');
+
+            if (type === 'GAMING') {
+                title.innerText = "Chi tiết động cho Video Game";
+                container.innerHTML = `
+                    <div class="col-md-6"><label class="form-label small fw-semibold">Nền tảng</label><input type="text" class="form-control form-control-sm" id="detail_platform" placeholder="PC, PS5" value="${detailsObj.platform || ''}"></div>
+                    <div class="col-md-6"><label class="form-label small fw-semibold">Thể loại (Genre)</label><input type="text" class="form-control form-control-sm" id="detail_genre" placeholder="Action RPG" value="${detailsObj.genre || ''}"></div>
+                    <div class="col-md-6"><label class="form-label small fw-semibold">Số giờ chơi</label><input type="number" step="0.5" class="form-control form-control-sm" id="detail_playtime_hours" value="${detailsObj.playtime_hours || 0}"></div>
+                    <div class="col-md-6"><label class="form-label small fw-semibold">Tỷ lệ hoàn thành (%)</label><input type="number" class="form-control form-control-sm" id="detail_completion_rate" value="${detailsObj.completion_rate || 100}"></div>
+                    <div class="col-12"><label class="form-label small fw-semibold">Đánh giá cá nhân</label><input type="text" class="form-control form-control-sm" id="detail_review" value="${detailsObj.review || ''}"></div>`;
+            } else if (type === 'READING') {
+                title.innerText = "Chi tiết động cho Sách";
+                container.innerHTML = `
+                    <div class="col-md-6"><label class="form-label small fw-semibold">Tác giả</label><input type="text" class="form-control form-control-sm" id="detail_author" value="${detailsObj.author || ''}"></div>
+                    <div class="col-md-6"><label class="form-label small fw-semibold">Nhà xuất bản</label><input type="text" class="form-control form-control-sm" id="detail_publisher" value="${detailsObj.publisher || ''}"></div>
+                    <div class="col-md-6"><label class="form-label small fw-semibold">Tổng số trang</label><input type="number" class="form-control form-control-sm" id="detail_total_pages" value="${detailsObj.total_pages || 300}"></div>
+                    <div class="col-md-6"><label class="form-label small fw-semibold">Trang hiện tại</label><input type="number" class="form-control form-control-sm" id="detail_current_page" value="${detailsObj.current_page || 0}"></div>
+                    <div class="col-12"><label class="form-label small fw-semibold">Đánh giá cá nhân</label><input type="text" class="form-control form-control-sm" id="detail_review" value="${detailsObj.review || ''}"></div>`;
+            } else if (type === 'TRAVEL') {
+                title.innerText = "Chi tiết động cho Du Lịch";
+                container.innerHTML = `
+                    <div class="col-md-6"><label class="form-label small fw-semibold">Điểm đến</label><input type="text" class="form-control form-control-sm" id="detail_destination" placeholder="Đà Lạt, Nhật Bản..." value="${detailsObj.destination || ''}"></div>
+                    <div class="col-md-6"><label class="form-label small fw-semibold">Phương tiện đi lại</label><input type="text" class="form-control form-control-sm" id="detail_transport_method" placeholder="Máy bay, Xe máy..." value="${detailsObj.transport_method || ''}"></div>
+                    <div class="col-md-6"><label class="form-label small fw-semibold">Số ngày đi</label><input type="number" class="form-control form-control-sm" id="detail_duration_days" value="${detailsObj.duration_days || 3}"></div>
+                    <div class="col-md-6"><label class="form-label small fw-semibold">Chi phí chuyến đi (VNĐ)</label><input type="number" class="form-control form-control-sm" id="detail_trip_cost" value="${detailsObj.trip_cost || 3000000}"></div>
+                    <div class="col-12"><label class="form-label small fw-semibold">Đánh giá chuyến đi</label><input type="text" class="form-control form-control-sm" id="detail_review" placeholder="Cảnh đẹp, thời tiết tuyệt vời..." value="${detailsObj.review || ''}"></div>`;
+            } else if (type === 'VEHICLES') {
+                title.innerText = "Chi tiết động cho Xe Cộ & Xe Yêu Thích";
+                container.innerHTML = `
+                    <div class="col-md-6"><label class="form-label small fw-semibold">Mẫu xe / Tên xe</label><input type="text" class="form-control form-control-sm" id="detail_vehicle_model" placeholder="Porsche 911 GT3 RS..." value="${detailsObj.vehicle_model || ''}"></div>
+                    <div class="col-md-6"><label class="form-label small fw-semibold">Thương hiệu / Hãng</label><input type="text" class="form-control form-control-sm" id="detail_brand" placeholder="Porsche, Honda..." value="${detailsObj.brand || ''}"></div>
+                    <div class="col-md-6"><label class="form-label small fw-semibold">Động cơ / Phân khối</label><input type="text" class="form-control form-control-sm" id="detail_engine_type" placeholder="4.0L V6 / 1000cc" value="${detailsObj.engine_type || ''}"></div>
+                    <div class="col-md-6"><label class="form-label small fw-semibold">Tốc độ tối đa</label><input type="text" class="form-control form-control-sm" id="detail_top_speed" placeholder="296 km/h" value="${detailsObj.top_speed || ''}"></div>
+                    <div class="col-md-6"><label class="form-label small fw-semibold">Giá trị xe (VNĐ)</label><input type="number" class="form-control form-control-sm" id="detail_vehicle_price" value="${detailsObj.vehicle_price || 500000000}"></div>
+                    <div class="col-md-6"><label class="form-label small fw-semibold">Đánh giá cá nhân</label><input type="text" class="form-control form-control-sm" id="detail_review" value="${detailsObj.review || ''}"></div>`;
+            } else if (type === 'COLLECTIBLES') {
+                title.innerText = "Chi tiết động cho Đồ Sưu Tầm";
+                container.innerHTML = `
+                    <div class="col-md-6"><label class="form-label small fw-semibold">Thương hiệu</label><input type="text" class="form-control form-control-sm" id="detail_brand" value="${detailsObj.brand || ''}"></div>
+                    <div class="col-md-6"><label class="form-label small fw-semibold">Tình trạng</label><input type="text" class="form-control form-control-sm" id="detail_condition" value="${detailsObj.condition || 'Mới 100%'}"></div>
+                    <div class="col-md-6"><label class="form-label small fw-semibold">Giá mua (VNĐ)</label><input type="number" class="form-control form-control-sm" id="detail_purchase_price" value="${detailsObj.purchase_price || 1000000}"></div>
+                    <div class="col-md-6"><label class="form-label small fw-semibold">Vị trí cất giữ</label><input type="text" class="form-control form-control-sm" id="detail_storage_location" value="${detailsObj.storage_location || ''}"></div>
+                    <div class="col-12"><label class="form-label small fw-semibold">Ghi chú bảo quản</label><input type="text" class="form-control form-control-sm" id="detail_maintenance_notes" value="${detailsObj.maintenance_notes || ''}"></div>`;
+            } else if (type === 'MOVIES_SHOWS') {
+                title.innerText = "Chi tiết động cho Phim ảnh";
+                container.innerHTML = `
+                    <div class="col-md-6"><label class="form-label small fw-semibold">Đạo diễn</label><input type="text" class="form-control form-control-sm" id="detail_director" value="${detailsObj.director || ''}"></div>
+                    <div class="col-md-6"><label class="form-label small fw-semibold">Loại phim</label><input type="text" class="form-control form-control-sm" id="detail_media_type" value="${detailsObj.media_type || 'Phim điện ảnh'}"></div>
+                    <div class="col-md-6"><label class="form-label small fw-semibold">Thời lượng (Phút)</label><input type="number" class="form-control form-control-sm" id="detail_duration_minutes" value="${detailsObj.duration_minutes || 120}"></div>
+                    <div class="col-md-6"><label class="form-label small fw-semibold">Năm phát hành</label><input type="number" class="form-control form-control-sm" id="detail_release_year" value="${detailsObj.release_year || 2024}"></div>
+                    <div class="col-12"><label class="form-label small fw-semibold">Đánh giá cá nhân</label><input type="text" class="form-control form-control-sm" id="detail_review" value="${detailsObj.review || ''}"></div>`;
+            } else {
+                title.innerText = "Chi tiết động cho Thể thao";
+                container.innerHTML = `
+                    <div class="col-md-6"><label class="form-label small fw-semibold">Loại hoạt động</label><input type="text" class="form-control form-control-sm" id="detail_activity_type" value="${detailsObj.activity_type || 'Chạy bộ'}"></div>
+                    <div class="col-md-6"><label class="form-label small fw-semibold">Quãng đường (km)</label><input type="number" step="0.1" class="form-control form-control-sm" id="detail_distance_km" value="${detailsObj.distance_km || 5}"></div>
+                    <div class="col-md-6"><label class="form-label small fw-semibold">Calo tiêu thụ</label><input type="number" class="form-control form-control-sm" id="detail_calories_burned" value="${detailsObj.calories_burned || 300}"></div>
+                    <div class="col-md-6"><label class="form-label small fw-semibold">Đánh giá cá nhân</label><input type="text" class="form-control form-control-sm" id="detail_review" value="${detailsObj.review || ''}"></div>`;
+            }
+        }
+
+        function openAddModal() {
+            const user = getLoggedInUser();
+            if (!user) {
+                openAuthModal('login');
+                return;
+            }
+            document.getElementById('editingId').value = '';
+            document.getElementById('modalTitle').innerText = 'Thêm mới sở thích';
+            document.getElementById('btnSubmit').innerText = 'Lưu vào MongoDB';
+            document.getElementById('addHobbyForm').reset();
+            document.getElementById('formUserId').value = user.userId;
+            renderDynamicFields();
+            new bootstrap.Modal(document.getElementById('addHobbyModal')).show();
+        }
+
+        function editHobby(id) {
+            const item = currentLoadedItems.find(x => x.id === id);
+            if (!item) return;
+
+            document.getElementById('editingId').value = item.id;
+            document.getElementById('modalTitle').innerText = 'Cập nhật sở thích';
+            document.getElementById('btnSubmit').innerText = 'Cập nhật MongoDB';
+
+            document.getElementById('formUserId').value = item.userId;
+            document.getElementById('formHobbyType').value = item.hobbyType;
+            document.getElementById('formTitle').value = item.title;
+            document.getElementById('formStatus').value = item.status;
+            document.getElementById('formRating').value = item.rating;
+            document.getElementById('formTags').value = (item.tags || []).join(', ');
+
+            renderDynamicFields(item.details || {});
+            new bootstrap.Modal(document.getElementById('addHobbyModal')).show();
+        }
+
+        document.getElementById('addHobbyForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+
+            const user = getLoggedInUser();
+            if (!user) return;
+
+            const editingId = document.getElementById('editingId').value;
+            const hobbyType = document.getElementById('formHobbyType').value;
+            const tagsInput = document.getElementById('formTags').value;
+            const tags = tagsInput ? tagsInput.split(',').map(t => t.trim()) : [];
+
+            const details = {};
+            if (hobbyType === 'GAMING') {
+                if (document.getElementById('detail_platform')) details.platform = document.getElementById('detail_platform').value;
+                if (document.getElementById('detail_genre')) details.genre = document.getElementById('detail_genre').value;
+                if (document.getElementById('detail_playtime_hours')) details.playtime_hours = parseFloat(document.getElementById('detail_playtime_hours').value) || 0;
+                if (document.getElementById('detail_completion_rate')) details.completion_rate = parseInt(document.getElementById('detail_completion_rate').value) || 0;
+                if (document.getElementById('detail_review')) details.review = document.getElementById('detail_review').value;
+            } else if (hobbyType === 'READING') {
+                if (document.getElementById('detail_author')) details.author = document.getElementById('detail_author').value;
+                if (document.getElementById('detail_publisher')) details.publisher = document.getElementById('detail_publisher').value;
+                if (document.getElementById('detail_total_pages')) details.total_pages = parseInt(document.getElementById('detail_total_pages').value) || 0;
+                if (document.getElementById('detail_current_page')) details.current_page = parseInt(document.getElementById('detail_current_page').value) || 0;
+                if (document.getElementById('detail_review')) details.review = document.getElementById('detail_review').value;
+            } else if (hobbyType === 'TRAVEL') {
+                if (document.getElementById('detail_destination')) details.destination = document.getElementById('detail_destination').value;
+                if (document.getElementById('detail_transport_method')) details.transport_method = document.getElementById('detail_transport_method').value;
+                if (document.getElementById('detail_duration_days')) details.duration_days = parseInt(document.getElementById('detail_duration_days').value) || 0;
+                if (document.getElementById('detail_trip_cost')) details.trip_cost = parseFloat(document.getElementById('detail_trip_cost').value) || 0;
+                if (document.getElementById('detail_review')) details.review = document.getElementById('detail_review').value;
+            } else if (hobbyType === 'VEHICLES') {
+                if (document.getElementById('detail_vehicle_model')) details.vehicle_model = document.getElementById('detail_vehicle_model').value;
+                if (document.getElementById('detail_brand')) details.brand = document.getElementById('detail_brand').value;
+                if (document.getElementById('detail_engine_type')) details.engine_type = document.getElementById('detail_engine_type').value;
+                if (document.getElementById('detail_top_speed')) details.top_speed = document.getElementById('detail_top_speed').value;
+                if (document.getElementById('detail_vehicle_price')) details.vehicle_price = parseFloat(document.getElementById('detail_vehicle_price').value) || 0;
+                if (document.getElementById('detail_review')) details.review = document.getElementById('detail_review').value;
+            } else if (hobbyType === 'COLLECTIBLES') {
+                if (document.getElementById('detail_brand')) details.brand = document.getElementById('detail_brand').value;
+                if (document.getElementById('detail_condition')) details.condition = document.getElementById('detail_condition').value;
+                if (document.getElementById('detail_purchase_price')) details.purchase_price = parseFloat(document.getElementById('detail_purchase_price').value) || 0;
+                if (document.getElementById('detail_storage_location')) details.storage_location = document.getElementById('detail_storage_location').value;
+                if (document.getElementById('detail_maintenance_notes')) details.maintenance_notes = document.getElementById('detail_maintenance_notes').value;
+            } else if (hobbyType === 'MOVIES_SHOWS') {
+                if (document.getElementById('detail_director')) details.director = document.getElementById('detail_director').value;
+                if (document.getElementById('detail_media_type')) details.media_type = document.getElementById('detail_media_type').value;
+                if (document.getElementById('detail_duration_minutes')) details.duration_minutes = parseInt(document.getElementById('detail_duration_minutes').value) || 0;
+                if (document.getElementById('detail_release_year')) details.release_year = parseInt(document.getElementById('detail_release_year').value) || 0;
+                if (document.getElementById('detail_review')) details.review = document.getElementById('detail_review').value;
+            } else if (hobbyType === 'SPORTS_FITNESS') {
+                if (document.getElementById('detail_activity_type')) details.activity_type = document.getElementById('detail_activity_type').value;
+                if (document.getElementById('detail_distance_km')) details.distance_km = parseFloat(document.getElementById('detail_distance_km').value) || 0;
+                if (document.getElementById('detail_calories_burned')) details.calories_burned = parseInt(document.getElementById('detail_calories_burned').value) || 0;
+                if (document.getElementById('detail_review')) details.review = document.getElementById('detail_review').value;
+            }
+
+            const payload = {
+                userId: document.getElementById('formUserId').value,
+                hobbyType: hobbyType,
+                title: document.getElementById('formTitle').value,
+                status: document.getElementById('formStatus').value,
+                rating: parseInt(document.getElementById('formRating').value),
+                tags: tags,
+                details: details
+            };
+
+            const isEdit = editingId !== '';
+            const url = isEdit 
+                ? `${API_BASE_URL}/${editingId}?currentUserId=${user.userId}&role=${user.role}` 
+                : API_BASE_URL;
+            const method = isEdit ? 'PUT' : 'POST';
+
+            try {
+                const response = await fetch(url, {
+                    method: method,
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (response.ok) {
+                    bootstrap.Modal.getInstance(document.getElementById('addHobbyModal')).hide();
+                    loadHobbies();
+                } else {
+                    const errJson = await response.json();
+                    alert('Lỗi: ' + (errJson.message || 'Không có quyền thực hiện!'));
+                }
+            } catch (err) {
+                alert('Không thể kết nối tới server!');
+            }
+        });
+
+        async function deleteHobby(id) {
+            const user = getLoggedInUser();
+            if (!user) return;
+
+            if (!confirm('Bạn có chắc chắn muốn xóa mục này khỏi MongoDB?')) return;
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/${id}?currentUserId=${user.userId}&role=${user.role}`, { method: 'DELETE' });
+                if (response.ok) {
+                    loadHobbies();
+                } else {
+                    const errJson = await response.json();
+                    alert('Từ chối truy cập: ' + (errJson.message || 'Bạn không có quyền xóa sở thích của người khác!'));
+                }
+            } catch (err) {
+                alert('Lỗi kết nối khi xóa!');
+            }
+        }
+        
+        // Kiểm tra và tự động mở Tour nếu tài khoản chưa từng xem
+        function checkAndRunTour() {
+            const user = getLoggedInUser();
+            if (user) {
+                const hasSeenTour = localStorage.getItem(`hobbyhub_tour_seen_${user.userId}`);
+                if (!hasSeenTour) {
+                    setTimeout(() => {
+                        startTour();
+                    }, 600);
+                }
+            }
+        }
+
+        // Hàm kích hoạt Tour Hướng Dẫn Driver.js
+        function startTour() {
+            if (!window.driver || !window.driver.js) {
+                alert("Thư viện hướng dẫn chưa tải xong, vui lòng thử lại sau vài giây!");
+                return;
+            }
+
+            const user = getLoggedInUser();
+            if (user) {
+                localStorage.setItem(`hobbyhub_tour_seen_${user.userId}`, 'true');
+            }
+
+            const driver = window.driver.js.driver;
+
+            const driverObj = driver({
+                showProgress: true,
+                animate: true,
+                nextBtnText: 'Tiếp theo →',
+                prevBtnText: '← Quay lại',
+                doneBtnText: 'Đã hiểu 🎉',
+                steps: [
+                    {
+                        element: '#pageTitle',
+                        popover: {
+                            title: 'Chào mừng bạn đến với HobbyHub! 👋',
+                            description: 'Đây là không gian quản lý sở thích cá nhân linh hoạt lưu trữ trực tiếp trên MongoDB.',
+                            side: "bottom", align: 'start'
+                        }
+                    },
+                    {
+                        element: '#categoryFilterTabs',
+                        popover: {
+                            title: '1. Lọc sở thích theo danh mục 📚🎮✈️',
+                            description: 'Bạn có thể bấm vào các tab để lọc nhanh danh sách sở thích như Sách, Game, Du lịch, Xe cộ...',
+                            side: "bottom", align: 'center'
+                        }
+                    },
+                    {
+                        element: '#btnAddHobbyNav',
+                        popover: {
+                            title: '2. Thêm mới sở thích ➕',
+                            description: 'Bấm vào nút này bất cứ lúc nào để mở biểu mẫu tạo sở thích mới.',
+                            side: "bottom", align: 'end'
+                        }
+                    },
+                    {
+                        popover: {
+                            title: '3. Điền chi tiết linh hoạt 📝',
+                            description: 'Khi chọn loại sở thích (ví dụ: Xe cộ hay Du lịch), các ô nhập liệu động (Giá trị, Mẫu xe, Chi phí, Điểm đến) sẽ tự động thay đổi theo chuẩn Polymorphic Pattern của MongoDB!'
+                        }
+                    }
+                ]
+            });
+
+            driverObj.drive();
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            renderAuthNavbar();
+            renderDynamicFields();
+            loadHobbies();
+            checkAndRunTour();
+        });
+    </script>
+</body>
+</html>
